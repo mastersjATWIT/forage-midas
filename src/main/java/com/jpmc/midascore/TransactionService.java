@@ -26,6 +26,9 @@ public class TransactionService {
     @Autowired
     private TransactionRecordRepository transactionRecordRepository;
     
+    @Autowired
+    private IncentiveService incentiveService;
+    
     @KafkaListener(topics = "transactions", groupId = "midas-group")
     @Transactional
     public void processTransaction(Transaction transaction) {
@@ -34,7 +37,7 @@ public class TransactionService {
         // Validate transaction
         if (isValidTransaction(transaction)) {
             // Record the transaction and update balances
-            recordTransaction(transaction);
+            recordTransactionWithIncentive(transaction);
         } else {
             logger.warn("Invalid transaction detected: {}", transaction.getTransactionId());
         }
@@ -61,22 +64,31 @@ public class TransactionService {
     }
     
     @Transactional
-    public void recordTransaction(Transaction transaction) {
+    public void recordTransactionWithIncentive(Transaction transaction) {
         User sender = userRepository.findById(transaction.getSenderId()).get();
         User recipient = userRepository.findById(transaction.getRecipientId()).get();
         
-        // Create and save transaction record
-        TransactionRecord record = new TransactionRecord(transaction, sender, recipient);
+        // Get incentive amount from the API
+        BigDecimal incentiveAmount = incentiveService.getIncentiveAmount(transaction);
+        
+        // Create and save transaction record with incentive
+        TransactionRecord record = new TransactionRecord(transaction, sender, recipient, incentiveAmount);
         transactionRecordRepository.save(record);
         
         // Update balances
+        // Sender only loses the transaction amount (not the incentive)
         sender.setBalance(sender.getBalance().subtract(transaction.getAmount()));
-        recipient.setBalance(recipient.getBalance().add(transaction.getAmount()));
+        
+        // Recipient gets both the transaction amount and the incentive
+        recipient.setBalance(recipient.getBalance()
+                .add(transaction.getAmount())
+                .add(incentiveAmount));
         
         // Save updated users
         userRepository.save(sender);
         userRepository.save(recipient);
         
-        logger.info("Transaction processed successfully: {}", transaction.getTransactionId());
+        logger.info("Transaction processed successfully: {}, with incentive: {}", 
+                transaction.getTransactionId(), incentiveAmount);
     }
 }

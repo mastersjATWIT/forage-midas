@@ -26,18 +26,22 @@ public class TransactionRecord {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
     
+    @Column(precision = 19, scale = 4)
+    private BigDecimal incentiveAmount;
+    
     @Column(nullable = false)
     private LocalDateTime timestamp;
     
     // Default constructor
     public TransactionRecord() {}
     
-    // Constructor from Transaction
-    public TransactionRecord(Transaction transaction, User sender, User recipient) {
+    // Constructor from Transaction with incentive
+    public TransactionRecord(Transaction transaction, User sender, User recipient, BigDecimal incentiveAmount) {
         this.transactionId = transaction.getTransactionId();
         this.sender = sender;
         this.recipient = recipient;
         this.amount = transaction.getAmount();
+        this.incentiveAmount = incentiveAmount;
         this.timestamp = transaction.getTimestamp();
     }
     
@@ -80,6 +84,14 @@ public class TransactionRecord {
     
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+    
+    public BigDecimal getIncentiveAmount() {
+        return incentiveAmount;
+    }
+    
+    public void setIncentiveAmount(BigDecimal incentiveAmount) {
+        this.incentiveAmount = incentiveAmount;
     }
     
     public LocalDateTime getTimestamp() {
